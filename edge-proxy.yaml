@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-proxy
+  namespace: jon
+  labels:
+    app: edge-proxy
+spec:
+  replicas: 1 selector:
+    matchLabels:
+      app: edge-proxy
+  template:
+    metadata:
+      labels:
+        app: edge-proxy
+      annotations:
+        sidecar.istio.io/inject: "true"
+        traffic.sidecar.istio.io/includeOutboundIPRanges: 172.17.0.0/18,172.21.0.0/16,172.30.0.0/16
+    spec:
+      containers:
+      - image: bitnami/nginx:latest
+        name: nginx
+        volumeMounts:
+          - name: sni-proxy-config
+            mountPath: /etc/nginx
+            readOnly: true
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "edge"
+        effect: "NoExecute"
+      nodeSelector:
+        ibm-cloud.kubernetes.io/worker-pool-name: edge
+      volumes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-proxy
+spec:
+  selector:
+    app: edge-proxy
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: v1
+data:
+  nginx.conf: |
+    # setup custom path that do not require root access
+    pid /tmp/nginx.pid;
+
+    events {
+    }
+
+    stream {
+      log_format log_stream '$remote_addr [$time_local] $protocol [$ssl_preread_server_name]'
+      '$status $bytes_sent $bytes_received $session_time';
+
+      access_log /var/log/nginx/access.log log_stream;
+      error_log  /var/log/nginx/error.log;
+
+      # tcp forward proxy by SNI
+      server {
+        resolver 8.8.8.8 ipv6=off;
+        listen       127.0.0.1:18443;
+        proxy_pass   $ssl_preread_server_name:443;
+        ssl_preread  on;
+      }
+    }
+kind: ConfigMap
+metadata:
+  name: edge-proxy-sni-config
+  namespace: istio-system

@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rheltools
+  namespace: jon
+  labels:
+    app: rheltools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rheltools
+  template:
+    metadata:
+      labels:
+        app: rheltools
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+        containers:
+        - image: registry.access.redhat.com/rhel7/rhel-tools:latest
+          name: rheltools
+          command: 
+            - sleep
+            - "infinity"

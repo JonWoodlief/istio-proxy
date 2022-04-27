@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-rheltools
+  namespace: jon
+  labels:
+    app: edge-rheltools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: edge-rheltools
+  template:
+    metadata:
+      labels:
+        app: edge-rheltools
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+        containers:
+        - image: registry.access.redhat.com/rhel7/rhel-tools:latest
+          name: edge-rheltools
+          command: 
+            - sleep
+            - "infinity"
+        tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "edge"
+          effect: "NoExecute"
+        nodeSelector:
+          ibm-cloud.kubernetes.io/worker-pool-name: edge
